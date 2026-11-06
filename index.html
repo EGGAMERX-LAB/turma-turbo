@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1b6fd1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Turma Turbo</title>
+<meta name="apple-mobile-web-app-title" content="Turma Turbo">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- Abertura EG Gamer X -->
+<div id="abertura" class="cobre on"><img src="logo.webp" alt="EG Gamer X"></div>
+
+<!-- Título -->
+<div id="titulo" class="cobre">
+  <h1>Turma<span>Turbo</span></h1>
+  <button id="bJogar" class="bolao pulsa" aria-label="Jogar">▶</button>
+  <button id="bSom" class="bola canto" aria-label="Som">🔊</button>
+  <div class="rodape"><img src="logo.webp" alt="EG Gamer X"><span>um jogo<br><b>EG GAMER X</b></span></div>
+</div>
+
+<!-- Escolher o piloto -->
+<div id="escolhe" class="cobre">
+  <div id="nomePiloto" class="nome"></div>
+  <button id="bAnt" class="seta esq" aria-label="Anterior">◀</button>
+  <button id="bProx" class="seta dir" aria-label="Próximo">▶</button>
+  <div id="fotos" class="fotos"></div>
+  <button id="bOk" class="bolao ok" aria-label="Pronto">✔</button>
+</div>
+
+<!-- Escolher a pista -->
+<div id="pistas" class="cobre">
+  <div class="grade" id="gradePistas"></div>
+</div>
+
+<!-- Corrida -->
+<div id="hud" class="cobre">
+  <div id="posicao">1º</div>
+  <div id="volta">1/3</div>
+  <div id="moedas">0</div>
+  <canvas id="mapa" width="200" height="200"></canvas>
+  <div id="contagem"></div>
+</div>
+<div id="controles">
+  <div id="tEsq" class="toque esq"><span>◀</span></div>
+  <div id="tDir" class="toque dir"><span>▶</span></div>
+  <button id="bItem" class="item" aria-label="Usar item"></button>
+</div>
+
+<!-- Fim da corrida -->
+<div id="fim" class="cobre">
+  <div id="medalha"></div>
+  <div id="lista" class="lista"></div>
+  <div class="linha">
+    <button id="bDeNovo" class="bola" aria-label="Correr de novo">↻</button>
+    <button id="bProxPista" class="bolao pulsa" aria-label="Próxima pista">▶</button>
+    <button id="bPistas" class="bola" aria-label="Escolher pista">🗺️</button>
+  </div>
+</div>
+
+<button id="bCasa" class="casa" aria-label="Início">🏠</button>
+<div id="gire"><span>📱</span><span class="seta">↻</span></div>
+
+<script src="lib/three.min.js"></script>
+<script src="personagens.js"></script>
+<script src="pistas.js"></script>
+<script src="jogo.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+/* Turma Turbo · EG Gamer X — corrida de kart em 3D, jogo deitado (paisagem) */
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: #0b1a3a; touch-action: none;
+  user-select: none; -webkit-user-select: none;
+  font-family: "Arial Rounded MT Bold", "Nunito", "Segoe UI", system-ui, sans-serif; }
+button { font: inherit; border: 0; cursor: pointer; color: inherit; }
+#cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+.cobre { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4vh; pointer-events: none; }
+.cobre.on { display: flex; }
+.cobre button { pointer-events: auto; }
+
+#abertura { background: #000; pointer-events: auto; z-index: 5; }
+#abertura img { width: min(60vw, 60vh); animation: surgir 1.2s ease-out both; }
+
+#titulo { justify-content: flex-start; padding-top: 5vh; }
+#titulo h1 { color: #fff; font-weight: 900; line-height: .88; text-align: center; font-style: italic;
+  font-size: min(16vh, 12vw); letter-spacing: .01em;
+  text-shadow: 0 .05em 0 #0b4fa8, 0 .1em 0 #083a7c, 0 .16em .3em rgba(0,0,0,.45); }
+#titulo h1 span { display: block; color: #ffd23a; font-size: .9em;
+  text-shadow: 0 .05em 0 #d35600, 0 .1em 0 #8f3a00, 0 .16em .3em rgba(0,0,0,.45); }
+
+.bolao { width: min(21vh, 24vw); height: min(21vh, 24vw); border-radius: 50%; display: grid; place-items: center;
+  font-size: min(10vh, 11vw); color: #fff; line-height: 1;
+  background: radial-gradient(circle at 35% 28%, #ffd27a, #ff8a1f 58%, #d35600);
+  border: .9vh solid #fff3dc;
+  box-shadow: 0 1vh 0 #8f3a00, 0 2vh 3vh rgba(0,0,0,.45); }
+.bolao:active { transform: translateY(.6vh); box-shadow: 0 .4vh 0 #8f3a00, 0 1vh 2vh rgba(0,0,0,.4); }
+.pulsa { animation: pulsa 1.3s ease-in-out infinite; }
+
+.bola { width: min(12vh, 14vw); height: min(12vh, 14vw); border-radius: 50%; display: grid; place-items: center;
+  font-size: min(6vh, 7vw); line-height: 1; background: #fff4dc; border: .6vh solid #fff;
+  box-shadow: 0 .7vh 0 rgba(0,0,0,.25); }
+.bola:active { transform: translateY(.5vh); }
+.canto { position: fixed; top: 2.5vh; right: 2.5vh; }
+
+.rodape { position: fixed; left: 2.5vh; bottom: 2.5vh; display: flex; align-items: center; gap: 1.2vh;
+  color: #fff; font-size: 2vh; line-height: 1.15; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.rodape img { height: 7vh; filter: drop-shadow(0 1px 3px rgba(0,0,0,.6)); }
+
+.casa { position: fixed; top: 2vh; left: 2vh; width: 9vh; height: 9vh; border-radius: 50%;
+  display: none; place-items: center; font-size: 4.5vh; line-height: 1;
+  background: rgba(255,255,255,.85); box-shadow: 0 .6vh 0 rgba(0,0,0,.25); z-index: 4; }
+.casa.on { display: grid; }
+
+/* Escolher piloto */
+#escolhe .nome { position: fixed; top: 4vh; left: 50%; transform: translateX(-50%); color: #fff; font-weight: 900;
+  font-size: min(10vh, 8vw); padding: .5vh 4vh; border-radius: 3vh; background: var(--cor, #1b6fd1);
+  border: .6vh solid #fff; box-shadow: 0 .8vh 0 rgba(0,0,0,.25); white-space: nowrap; }
+#escolhe .seta { position: fixed; top: 45%; transform: translateY(-50%); width: min(15vh, 14vw); height: min(15vh, 14vw);
+  border-radius: 50%; background: rgba(255,255,255,.92); font-size: min(7vh, 6vw); color: #ff7a00; box-shadow: 0 .8vh 0 rgba(0,0,0,.25); }
+#escolhe .seta:active { transform: translateY(-45%); }
+#escolhe .esq { left: 3vw; } #escolhe .dir { right: 3vw; }
+#escolhe .fotos { position: fixed; bottom: 3vh; left: 3vw; right: calc(3vw + min(19vh, 17vw)); display: flex; gap: 1.4vh;
+  justify-content: center; flex-wrap: wrap; }
+#escolhe .foto { width: min(13vh, 9vw); height: min(13vh, 9vw); border-radius: 2.4vh; background: rgba(255,255,255,.7);
+  border: .6vh solid transparent; box-shadow: 0 .6vh 0 rgba(0,0,0,.2); overflow: hidden; padding: 0; }
+#escolhe .foto img { width: 100%; height: 100%; display: block; }
+#escolhe .foto.on { background: #fff; border-color: var(--cor, #ff8a1f); transform: scale(1.12); }
+#escolhe .ok { position: fixed; right: 3vw; bottom: 3vh; width: min(18vh, 16vw); height: min(18vh, 16vw); }
+
+/* Escolher pista */
+#pistas { background: rgba(5,15,40,.55); }
+#pistas .grade { display: flex; flex-wrap: wrap; justify-content: center; gap: 4vh; max-width: 94vw; }
+#pistas button { width: min(30vh, 20vw); height: min(34vh, 23vw); border-radius: 4vh; border: .8vh solid #fff;
+  background: linear-gradient(var(--c1), var(--c2)); box-shadow: 0 1vh 0 rgba(0,0,0,.35);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1vh; color: #fff; }
+#pistas button b { font-size: min(14vh, 10vw); line-height: 1; }
+#pistas button span { font-weight: 900; font-size: min(4vh, 2.6vw); text-shadow: 0 2px 3px rgba(0,0,0,.6); }
+#pistas button:active { transform: translateY(.6vh); }
+
+/* Corrida */
+#hud { z-index: 2; }
+#posicao { position: fixed; top: 2vh; right: 3vh; color: #fff; font-weight: 900; font-style: italic; font-size: 14vh; line-height: 1;
+  text-shadow: 0 .6vh 0 #0b4fa8, 0 1vh 1.5vh rgba(0,0,0,.5); }
+#posicao.p1 { color: #ffd23a; text-shadow: 0 .6vh 0 #c76a00, 0 1vh 1.5vh rgba(0,0,0,.5); }
+#volta { position: fixed; top: 2.5vh; left: 13vh; color: #fff; font-weight: 900; font-size: 6vh;
+  background: rgba(0,0,0,.35); border-radius: 2vh; padding: .3vh 2vh; }
+#volta::before { content: "🏁 "; font-size: .8em; }
+#moedas::before { content: ""; display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: .3em; vertical-align: -.08em;
+  background: radial-gradient(circle at 35% 30%, #fff6b0, #ffd23a 50%, #d99a00); border: .08em solid #a86f00; }
+#moedas { position: fixed; top: 11vh; left: 13vh; color: #ffe066; font-weight: 900; font-size: 4.5vh;
+  background: rgba(0,0,0,.35); border-radius: 2vh; padding: .2vh 2vh; }
+#mapa { position: fixed; left: 2vh; bottom: 24vh; width: 22vh; height: 22vh; opacity: .9; }
+#contagem { position: fixed; top: 30%; left: 50%; transform: translate(-50%,-50%); font-size: 26vh; font-weight: 900;
+  color: #fff; text-shadow: 0 1.2vh 0 #d35600, 0 2vh 3vh rgba(0,0,0,.5); font-style: italic; }
+#contagem.pop { animation: pop .5s ease-out; }
+
+#controles { position: fixed; inset: 0; display: none; z-index: 1; }
+#controles.on { display: block; }
+.toque { position: absolute; top: 20%; bottom: 0; width: 50%; display: flex; align-items: flex-end; padding: 4vh; }
+.toque.esq { left: 0; justify-content: flex-start; }
+.toque.dir { right: 0; justify-content: flex-end; }
+.toque span { width: 20vh; height: 20vh; border-radius: 50%; display: grid; place-items: center; font-size: 9vh;
+  color: #fff; background: rgba(255,255,255,.22); border: .6vh solid rgba(255,255,255,.6); }
+.toque.on span { background: rgba(255,170,40,.6); transform: scale(.94); }
+.item { position: absolute; right: 4vh; bottom: 28vh; width: 17vh; height: 17vh; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10vh; line-height: 1;
+  background: rgba(0,0,0,.35); border: .7vh solid rgba(255,255,255,.7); z-index: 2; }
+.item.cheio { background: radial-gradient(circle at 35% 28%, #fff, #ffe08a 60%, #ffb21f); border-color: #fff;
+  animation: pulsa 0.8s ease-in-out infinite; }
+.item.roleta { background: rgba(255,255,255,.85); }
+
+/* Fim */
+#fim { background: radial-gradient(circle, rgba(0,0,0,0), rgba(0,0,0,.45)); z-index: 3; justify-content: flex-start; gap: 2vh; padding: 3vh 0; }
+#fim .linha { margin-top: auto; }
+#medalha { font-size: 18vh; line-height: 1; filter: drop-shadow(0 1vh 1vh rgba(0,0,0,.4)); animation: pop .8s ease-out; }
+#fim .lista { display: flex; gap: 1vh; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
+#fim .lista div { position: relative; width: 10vh; height: 10vh; border-radius: 2vh; background: rgba(255,255,255,.8); overflow: hidden; }
+#fim .lista div.eu { outline: .6vh solid #ffd23a; transform: scale(1.15); }
+#fim .lista img { width: 100%; height: 100%; }
+#fim .lista b { position: absolute; left: .5vh; top: .2vh; color: #fff; font-size: 3vh; text-shadow: 0 0 4px #000, 0 0 2px #000; }
+#fim .linha { display: flex; align-items: center; gap: 5vh; }
+
+#gire { position: fixed; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center;
+  gap: 4vw; background: #0b1a3a; color: #fff; font-size: 18vw; }
+#gire.on { display: flex; }
+#gire span { display: inline-block; animation: gira 2s ease-in-out infinite; }
+#gire .seta { animation: none; font-size: .7em; }
+
+@keyframes surgir { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes pulsa { 50% { transform: scale(1.08); } }
+@keyframes pop { from { transform: translate(-50%,-50%) scale(2); opacity: 0; } }
+#medalha { animation-name: popm; }
+@keyframes popm { from { transform: scale(2.5); opacity: 0; } }
+@keyframes gira { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
