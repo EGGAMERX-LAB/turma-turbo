@@ -9,14 +9,19 @@ const URLP = new URLSearchParams(location.search);
 const VOLTAS = 3;
 
 /* ---------- Guardado no aparelho ---------- */
-let save = { piloto: 0, som: true };
+let save = { piloto: 0, som: true, leve: false };
 try { Object.assign(save, JSON.parse(localStorage.getItem('turmaTurbo') || '{}')); } catch (e) {}
 function guarda() { try { localStorage.setItem('turmaTurbo', JSON.stringify(save)); } catch (e) {} }
 
 /* ---------- Desenho ---------- */
 const cv = $('cv');
 const R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
-R.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+R.setPixelRatio(save.leve ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+R.outputEncoding = THREE.sRGBEncoding;
+R.toneMapping = THREE.ACESFilmicToneMapping;          // cores e brilho de cinema
+R.toneMappingExposure = 1.0;
+R.shadowMap.enabled = !save.leve;                     // sombras de verdade (desligam no modo leve)
+R.shadowMap.type = THREE.PCFSoftShadowMap;
 const cam = new THREE.PerspectiveCamera(65, 1, 0.1, 900);
 let W = 1, H = 1;
 function ajusta() {
@@ -122,28 +127,37 @@ const FOTO = {};
 function fazFotos() {
   const cena = new THREE.Scene();
   cena.background = new THREE.Color('#cfe8ff');
-  cena.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.9));
-  const l = new THREE.DirectionalLight(0xffffff, 0.6); l.position.set(2, 3, 4); cena.add(l);
+  cena.environment = ambiente('#9fd0ff', '#ffffff', '#b8c4d0');
+  cena.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.35));
+  const l = new THREE.DirectionalLight(0xffffff, 1.8); l.position.set(2, 3, 4); cena.add(l);
   const c = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
   R.setSize(128, 128, false);
   for (const p of PILOTOS) {
-    const g = criaPiloto(p); cena.add(g);
+    const g = corReal(criaPiloto(p)); cena.add(g);
     const y = p.tipo === 'pesco' ? 2.2 : 1.5;
     c.position.set(0.9, y + 0.25, 2.6); c.lookAt(0, y - 0.05, 0);
     R.render(cena, c);
     FOTO[p.id] = cv.toDataURL('image/png');
     cena.remove(g);
   }
+  cena.environment.dispose();
 }
 
 /* ---------- Vitrine (fundo dos menus: kart girando no palco) ---------- */
 const vitrine = new THREE.Scene();
 vitrine.background = texCeu('#2f7de1', '#bfe6ff');
-vitrine.add(new THREE.HemisphereLight(0xffffff, 0x6688aa, 0.85));
-{ const l = new THREE.DirectionalLight(0xffffff, 0.7); l.position.set(3, 6, 5); vitrine.add(l); }
+vitrine.environment = ambiente('#2f7de1', '#bfe6ff', '#ffd23a');
+vitrine.add(new THREE.HemisphereLight(0xffffff, 0x6688aa, 0.3));
+{
+  const l = criaSol(vitrine, 2.2), sc = l.shadow.camera;
+  sc.left = sc.bottom = -5; sc.right = sc.top = 5; sc.updateProjectionMatrix();
+  moveSol(l, 0, 0, 0);
+}
 const palco = new THREE.Group();
-palco.add(malha(GEO.cil, '#ffd23a', 0, -0.2, 0, 2.6, 0.4, 2.6));
-palco.add(malha(GEO.cil, '#ff8a1f', 0, -0.45, 0, 2.9, 0.3, 2.9));
+palco.add(malha(GEO.cil, mat('#ffd23a', 'tinta'), 0, -0.2, 0, 2.6, 0.4, 2.6));
+palco.add(malha(GEO.cil, mat('#ff8a1f', 'tinta'), 0, -0.45, 0, 2.9, 0.3, 2.9));
+palco.children.forEach(m => { m.receiveShadow = true; });
+corReal(vitrine);
 vitrine.add(palco);
 for (let i = 0; i < 14; i++) {
   const a = i / 14 * Math.PI * 2;
@@ -158,6 +172,8 @@ function mostraPiloto(i, falarNome = true) {
   if (kartVitrine) palco.remove(kartVitrine);
   kartVitrine = criaKart(p);
   kartVitrine.scale.setScalar(1.35);
+  kartVitrine.traverse(o => { o.castShadow = true; });
+  corReal(kartVitrine);
   palco.add(kartVitrine);
   $('nomePiloto').textContent = p.nome;
   $('escolhe').style.setProperty('--cor', p.cor);
@@ -199,9 +215,10 @@ function iniciaCorrida(ip) {
   const karts = grade.map((p, n) => {
     const fila = Math.floor(n / 2), lado = (n % 2 ? -1 : 1) * 3.5;
     const idx = (P.N - 3 - fila * 4) % P.N, pt = P.pts[idx];
-    const m = criaKart(p); cena.add(m);
+    const m = corReal(criaKart(p)); cena.add(m);
+    m.traverse(o => { o.castShadow = true; });
     const sombra = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3), sombraMat);
-    sombra.rotation.x = -Math.PI / 2; cena.add(sombra);
+    sombra.rotation.x = -Math.PI / 2; sombra.visible = !R.shadowMap.enabled; cena.add(sombra);
     const eu = p === PILOTOS[escolhido];
     return {
       p, m, sombra, eu, x: pt.x + pt.lx * lado, z: pt.z + pt.lz * lado, y: pt.y, chaoY: pt.y,
@@ -239,6 +256,7 @@ function acabaCorrida() {
     if (o.material && !matsFixos.has(o.material)) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
   });
   if (C.cena.background && C.cena.background.dispose) C.cena.background.dispose();
+  if (C.cena.environment) C.cena.environment.dispose();
   C = null;
   dedos.esq.clear(); dedos.dir.clear();
 }
@@ -262,7 +280,7 @@ function usaItem(k) {
     m.add(bola(0.55, '#fff8e8', 0, 0.7, 0, 1, 1.3, 1));
     for (let i = 0; i < 5; i++) m.add(bola(0.12, '#6cc04a', Math.cos(i * 1.3) * 0.48, 0.5 + (i % 3) * 0.3, Math.sin(i * 1.3) * 0.48, 1, 1, 0.4));
     m.position.set(k.x - fx * 2.4, k.chaoY, k.z - fz * 2.4);
-    C.cena.add(m);
+    C.cena.add(corReal(m));
     C.objs.push({ tipo: 'ovo', m, x: m.position.x, z: m.position.z, dono: k, imune: 0.6, vida: 45 });
     if (k.eu) SOM.ovo();
   } else if (it === 'balao') {
@@ -270,7 +288,7 @@ function usaItem(k) {
     m.add(bola(0.7, '#ff4d6d', 0, 1.6, 0, 1, 1.2, 1));
     m.add(bola(0.18, '#ffffff', 0.25, 1.95, 0.45));
     m.add(entre([0, 0.75, 0], [0, 0.2, 0], 0.03, '#ffffff'));
-    C.cena.add(m);
+    C.cena.add(corReal(m));
     const ord = ranking(), pos = ord.indexOf(k);
     C.objs.push({ tipo: 'balao', m, dono: k, alvo: pos > 0 ? ord[pos - 1] : null, s: k.idx + 2, lado: k.lat, vida: 9, x: k.x, z: k.z });
     if (k.eu) SOM.balao();
@@ -446,7 +464,7 @@ function atualizaKart(k, dt, pos) {
   }
   if (k.aura) {
     k.aura.visible = brilho;
-    if (k.estrela > 0) k.aura.material.color.setHSL((C.t * 2) % 1, 1, 0.6);
+    if (k.estrela > 0) k.aura.material.color.setHSL((C.t * 2) % 1, 1, 0.6).convertSRGBToLinear();
     else k.aura.material.color.set('#9fe6ff');
   }
 }
@@ -515,7 +533,7 @@ function pegaveis(dt) {
   const ord = ranking();
   for (const c of P.caixas) {
     c.m.rotation.y += dt * 1.5; c.m.rotation.x = Math.sin(C.t * 2 + c.lado) * 0.3;
-    c.m.userData.caixa.material.color.setHSL((C.t * 0.3 + c.lado * 0.05) % 1, 0.85, 0.6);
+    c.m.userData.caixa.material.color.setHSL((C.t * 0.3 + c.lado * 0.05) % 1, 0.85, 0.6).convertSRGBToLinear();
     if (c.volta > 0) { c.volta -= dt; c.m.visible = c.volta <= 0; if (c.volta > 0) continue; }
     for (const k of C.karts) {
       if ((k.x - c.m.position.x) ** 2 + (k.z - c.m.position.z) ** 2 < 3.6) {
@@ -640,11 +658,32 @@ function confete() {
   C.cena.add(C.confete);
 }
 
+/* ---------- Modo leve: se o celular não aguentar, tira as sombras e a nitidez extra ---------- */
+let medT = 0, medN = 0;
+function mede(bruto) {
+  if (save.leve || medN < 0 || bruto <= 0 || bruto > 0.25) return;
+  medT += bruto; medN++;
+  if (medN >= 90) {
+    if (medT / medN > 1 / 28) modoLeve();
+    medN = -1;
+  }
+}
+function modoLeve() {
+  save.leve = true; guarda();
+  R.shadowMap.enabled = false;
+  R.setPixelRatio(1); ajusta();
+  const marca = o => { if (o.material) o.material.needsUpdate = true; };
+  vitrine.traverse(marca);
+  if (C) { C.cena.traverse(marca); C.karts.forEach(k => { k.sombra.visible = true; }); }
+}
+
 /* ---------- Laço principal ---------- */
 let ultimo = performance.now();
 function quadro(agora) {
   requestAnimationFrame(quadro);
-  const dt = Math.max(0, Math.min(0.05, (agora - ultimo) / 1000)); ultimo = Math.max(ultimo, agora);
+  const bruto = (agora - ultimo) / 1000;
+  const dt = Math.max(0, Math.min(0.05, bruto)); ultimo = Math.max(ultimo, agora);
+  if (C && C.fase === 'corre' && tela === 'corrida') mede(bruto);
   if (C && (tela === 'corrida' || tela === 'fim')) {
     C.t += dt;
     if (C.fase === 'contagem') {
@@ -676,6 +715,7 @@ function quadro(agora) {
       motor.o.frequency.setTargetAtTime(48 + v * 3.6, ac.currentTime, 0.05);
       motor.g.gain.setTargetAtTime(save.som && tela === 'corrida' ? 0.03 : 0, ac.currentTime, 0.1);
     }
+    moveSol(C.P.sol, C.eu.x, C.eu.y, C.eu.z);
     R.render(C.cena, cam);
   } else {
     palco.rotation.y += dt * 0.7;

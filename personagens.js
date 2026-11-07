@@ -17,8 +17,11 @@ const PILOTOS = [
 ];
 
 const GEO = {
-  esfera: new THREE.SphereGeometry(1, 14, 10),
-  bolinha: new THREE.SphereGeometry(1, 8, 6),
+  esfera: new THREE.SphereGeometry(1, 18, 12),
+  bolinha: new THREE.SphereGeometry(1, 10, 7),
+  folha: new THREE.IcosahedronGeometry(1, 1),
+  pedra: new THREE.IcosahedronGeometry(1, 0),
+  tronco: new THREE.CylinderGeometry(0.65, 1, 1, 8),
   caixa: new THREE.BoxGeometry(1, 1, 1),
   cil: new THREE.CylinderGeometry(1, 1, 1, 12),
   cone: new THREE.ConeGeometry(1, 1, 10),
@@ -26,10 +29,42 @@ const GEO = {
   volante: new THREE.TorusGeometry(0.17, 0.035, 5, 14),
 };
 const MATS = {};
-function mat(c) { return MATS[c] || (MATS[c] = new THREE.MeshToonMaterial({ color: c })); }
+// Materiais com luz realista: "tinta" brilha como carro novo, "metal" reflete, "borracha" é fosca, "folha" fica facetada.
+function mat(c, tipo = '') {
+  const ch = c + tipo;
+  if (!MATS[ch]) {
+    const o = { color: c, roughness: 0.62, metalness: 0 };
+    if (tipo === 'tinta') { o.roughness = 0.22; o.metalness = 0.35; }
+    else if (tipo === 'metal') { o.roughness = 0.2; o.metalness = 1; }
+    else if (tipo === 'borracha') { o.roughness = 0.92; }
+    else if (tipo === 'pelo') { o.roughness = 0.9; }
+    else if (tipo === 'folha') { o.roughness = 0.85; o.flatShading = true; }
+    else if (tipo === 'brilho') { o.roughness = 0.08; }
+    o.envMapIntensity = tipo === 'tinta' || tipo === 'metal' || tipo === 'brilho' ? 0.9 : 0.3;   // reflexo forte só no que brilha
+    MATS[ch] = new THREE.MeshStandardMaterial(o);
+  }
+  return MATS[ch];
+}
+const qualMat = c => (typeof c === 'string' ? mat(c) : c);
+
+/* Cores certas na tela: as cores são escritas como no desenho (sRGB) e a luz é calculada em linear.
+   Passa uma vez por cada material novo de um objeto já montado. */
+function corReal(obj) {
+  obj.traverse(o => {
+    const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const m of ms) {
+      if (m.userData.corReal) continue;
+      m.userData.corReal = true;
+      if (m.color && !m.vertexColors) m.color.convertSRGBToLinear();
+      if (m.emissive) m.emissive.convertSRGBToLinear();
+      if (m.map) { m.map.encoding = THREE.sRGBEncoding; m.map.needsUpdate = true; }
+    }
+  });
+  return obj;
+}
 
 function malha(geo, c, x, y, z, sx, sy, sz) {
-  const m = new THREE.Mesh(geo, mat(c));
+  const m = new THREE.Mesh(geo, qualMat(c));
   m.position.set(x, y, z);
   m.scale.set(sx, sy === undefined ? sx : sy, sz === undefined ? sx : sz);
   return m;
@@ -41,7 +76,7 @@ const bloco = (w, h, d, c, x, y, z) => malha(GEO.caixa, c, x, y, z, w, h, d);
 const _cima = new THREE.Vector3(0, 1, 0);
 function entre(a, b, r, c, geo = GEO.cil) {
   const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A);
-  const m = new THREE.Mesh(geo, mat(c));
+  const m = new THREE.Mesh(geo, qualMat(c));
   m.position.copy(A).add(B).multiplyScalar(0.5);
   m.quaternion.setFromUnitVectors(_cima, d.clone().normalize());
   m.scale.set(r, d.length(), r);
@@ -52,7 +87,7 @@ function chifre(base, ponta, r, c) { return entre(base, ponta, r, c, GEO.cone); 
 function olhos(g, y, z, sep, r = 0.11, olhar = 0.09) {
   for (const s of [-1, 1]) {
     g.add(bola(r, '#ffffff', s * sep, y, z));
-    g.add(bola(r * 0.55, '#1c1c28', s * sep, y + r * 0.05, z + olhar));
+    g.add(bola(r * 0.55, mat('#1c1c28', 'brilho'), s * sep, y + r * 0.05, z + olhar));
     g.add(bola(r * 0.18, '#ffffff', s * sep + r * 0.2, y + r * 0.3, z + olhar + r * 0.4));
   }
 }
@@ -87,18 +122,19 @@ function menino(g, p) {
   bracos(g, p.camisa, p.pele);
   g.add(bola(0.42, p.pele, 0, 1.45, -0.05));                        // cabeça grande, de desenho
   for (const s of [-1, 1]) g.add(bola(0.1, p.pele, s * 0.41, 1.44, -0.06, 0.6, 1, 1));
-  g.add(bola(0.45, p.cabelo, 0, 1.56, -0.17, 1, 0.86, 1));          // cabelo
+  const cab = mat(p.cabelo, 'pelo');
+  g.add(bola(0.45, cab, 0, 1.56, -0.17, 1, 0.86, 1));               // cabelo
   if (p.topete === 'ponta') {
-    g.add(chifre([0.02, 1.86, 0.05], [0.12, 2.08, 0.18], 0.12, p.cabelo));
-    g.add(chifre([-0.12, 1.84, 0.08], [-0.2, 2.02, 0.24], 0.09, p.cabelo));
+    g.add(chifre([0.02, 1.86, 0.05], [0.12, 2.08, 0.18], 0.12, cab));
+    g.add(chifre([-0.12, 1.84, 0.08], [-0.2, 2.02, 0.24], 0.09, cab));
   } else if (p.topete === 'cachos') {
     for (let i = 0; i < 9; i++) {
       const a = i / 9 * Math.PI * 2;
-      g.add(bola(0.15, p.cabelo, Math.cos(a) * 0.3, 1.82 + Math.sin(a * 2) * 0.03, -0.12 + Math.sin(a) * 0.3));
+      g.add(bola(0.15, cab, Math.cos(a) * 0.3, 1.82 + Math.sin(a * 2) * 0.03, -0.12 + Math.sin(a) * 0.3));
     }
-    g.add(bola(0.16, p.cabelo, 0, 1.95, -0.1));
+    g.add(bola(0.16, cab, 0, 1.95, -0.1));
   } else {
-    g.add(bola(0.3, p.cabelo, 0, 1.72, 0.14, 1.2, 0.35, 0.7));      // franjinha
+    g.add(bola(0.3, cab, 0, 1.72, 0.14, 1.2, 0.35, 0.7));      // franjinha
   }
   olhos(g, 1.5, 0.33, 0.15);
   g.add(bola(0.055, '#e09a72', 0, 1.42, 0.42));
@@ -244,7 +280,7 @@ function texLetra(letra, cor) {
 
 function criaKart(p) {
   const k = new THREE.Group(), corpo = new THREE.Group();
-  const cor = p.cor, cor2 = p.cor2;
+  const cor = mat(p.cor, 'tinta'), cor2 = mat(p.cor2, 'tinta'), cromo = mat('#cfd6e0', 'metal');
   corpo.add(bloco(1.25, 0.22, 1.9, cor, 0, 0.36, 0));
   corpo.add(bola(0.5, cor, 0, 0.47, 0.72, 1.05, 0.42, 0.95));
   corpo.add(bloco(1.05, 0.18, 0.3, cor2, 0, 0.33, 1.07));
@@ -252,12 +288,12 @@ function criaKart(p) {
   corpo.add(bloco(0.78, 0.6, 0.14, '#2b2b36', 0, 0.76, -0.56));
   corpo.add(bloco(0.72, 0.36, 0.42, '#5b5f6b', 0, 0.58, -0.86));
   for (const s of [-1, 1]) {
-    const e = malha(GEO.cil, '#cfd6e0', s * 0.2, 0.62, -1.12, 0.075, 0.35, 0.075);
+    const e = malha(GEO.cil, cromo, s * 0.2, 0.62, -1.12, 0.075, 0.35, 0.075);
     e.rotation.x = Math.PI / 2; corpo.add(e);
     corpo.add(bloco(0.06, 0.42, 0.06, '#2b2b36', s * 0.42, 0.88, -0.95));
   }
   corpo.add(bloco(1.35, 0.08, 0.34, cor, 0, 1.1, -0.95));
-  const placa = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.32), new THREE.MeshBasicMaterial({ map: texLetra(p.letra, cor) }));
+  const placa = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.32), new THREE.MeshBasicMaterial({ map: texLetra(p.letra, p.cor) }));
   placa.position.set(0, 0.92, -1.14); placa.rotation.y = Math.PI; k.add(placa);
   const v = new THREE.Mesh(GEO.volante, mat('#2b2b36'));
   v.position.set(0, 0.86, 0.38); v.rotation.x = -0.55; corpo.add(v);
@@ -268,8 +304,8 @@ function criaKart(p) {
   for (const [x, z, r] of [[0.7, 0.68, 0.28], [-0.7, 0.68, 0.28], [0.72, -0.7, 0.34], [-0.72, -0.7, 0.34]]) {
     const apoio = new THREE.Group(); apoio.position.set(x, r, z);
     const giro = new THREE.Group(); apoio.add(giro);
-    const pneu = malha(GEO.cil, '#1e1e24', 0, 0, 0, r, 0.27, r); pneu.rotation.z = Math.PI / 2;
-    const roda = malha(GEO.cil, '#dfe5ee', Math.sign(x) * 0.02, 0, 0, r * 0.5, 0.29, r * 0.5); roda.rotation.z = Math.PI / 2;
+    const pneu = malha(GEO.cil, mat('#1e1e24', 'borracha'), 0, 0, 0, r, 0.27, r); pneu.rotation.z = Math.PI / 2;
+    const roda = malha(GEO.cil, cromo, Math.sign(x) * 0.02, 0, 0, r * 0.5, 0.29, r * 0.5); roda.rotation.z = Math.PI / 2;
     giro.add(pneu, roda);
     k.add(apoio); rodas.push(giro);
     if (z > 0) frente.push(apoio);

@@ -32,17 +32,93 @@ function texCanvas(w, h, desenha, rep) {
 }
 
 function texAsfalto(ceu) {
-  return texCanvas(128, 128, (x, w, h) => {
-    x.fillStyle = ceu ? '#5146b8' : '#55585f'; x.fillRect(0, 0, w, h);
-    for (let i = 0; i < 500; i++) {
-      x.fillStyle = ceu ? `rgba(255,255,255,${Math.random() * 0.35})` : `rgba(${Math.random() < 0.5 ? 0 : 255},${Math.random() < 0.5 ? 0 : 255},255,0.05)`;
-      x.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  return texCanvas(256, 256, (x, w, h) => {
+    x.fillStyle = ceu ? '#3b318f' : '#4a4d53'; x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 9000; i++) {                               // pedrinhas do asfalto
+      const v = Math.random();
+      x.fillStyle = ceu ? `rgba(255,${200 + v * 55 | 0},255,${v * 0.3})` : `rgba(${v < 0.5 ? '20,20,24' : '200,200,205'},${0.04 + Math.random() * 0.12})`;
+      x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
     }
-    x.fillStyle = ceu ? '#ffe9ff' : '#f3f3f3';
-    x.fillRect(w / 2 - 3, 0, 6, h / 2);                             // faixa do meio tracejada
-    x.fillStyle = ceu ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.75)';
-    x.fillRect(4, 0, 3, h); x.fillRect(w - 7, 0, 3, h);
+    for (let i = 0; i < 6; i++) {                                  // manchas e partes mais gastas
+      const px = Math.random() * w, py = Math.random() * h, g = x.createRadialGradient(px, py, 2, px, py, 60);
+      g.addColorStop(0, ceu ? 'rgba(255,180,255,.08)' : 'rgba(0,0,0,.12)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(0, 0, w, h);
+    }
+    if (!ceu) for (const cx of [0.3, 0.7]) {                       // marcas de pneu nas faixas
+      x.fillStyle = 'rgba(15,15,18,.18)';
+      x.fillRect(cx * w - 14, 0, 9, h); x.fillRect(cx * w + 5, 0, 9, h);
+    }
+    x.fillStyle = ceu ? '#ffe9ff' : '#ecebe4';
+    x.fillRect(w / 2 - 4, 0, 8, h * 0.45);                          // faixa do meio tracejada
+    x.fillStyle = ceu ? 'rgba(255,255,255,.55)' : 'rgba(240,240,232,.85)';
+    x.fillRect(8, 0, 5, h); x.fillRect(w - 13, 0, 5, h);
+    for (let i = 0; i < 300; i++) { x.fillStyle = 'rgba(60,60,60,.35)'; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
   });
+}
+// Chão com textura: grama, areia ou neve, com variação de cor para não parecer liso.
+function texChao(base, tipo) {
+  return texCanvas(256, 256, (x, w, h) => {
+    x.fillStyle = base; x.fillRect(0, 0, w, h);
+    const c = new THREE.Color(base);
+    const tom = (d, a) => { const k = c.clone().offsetHSL(0, 0, d); return `rgba(${k.r * 255 | 0},${k.g * 255 | 0},${k.b * 255 | 0},${a})`; };
+    for (let i = 0; i < 14; i++) {
+      const px = Math.random() * w, py = Math.random() * h, g = x.createRadialGradient(px, py, 4, px, py, 50 + Math.random() * 40);
+      g.addColorStop(0, tom((Math.random() - 0.5) * 0.12, 0.6)); g.addColorStop(1, tom(0, 0));
+      x.fillStyle = g; x.fillRect(0, 0, w, h);
+    }
+    for (let i = 0; i < (tipo === 'grama' ? 7000 : 5000); i++) {
+      const px = Math.random() * w, py = Math.random() * h;
+      if (tipo === 'grama') {                                       // folhinhas de grama
+        x.strokeStyle = tom((Math.random() - 0.45) * 0.22, 0.7); x.lineWidth = 1;
+        x.beginPath(); x.moveTo(px, py); x.lineTo(px + (Math.random() - 0.5) * 3, py - 3 - Math.random() * 4); x.stroke();
+      } else {
+        x.fillStyle = tom((Math.random() - 0.5) * (tipo === 'neve' ? 0.08 : 0.16), 0.6);
+        x.fillRect(px, py, 1.5, 1.5);
+      }
+    }
+  });
+}
+// Brilho do sol no céu.
+function texSol() {
+  const t = texCanvas(128, 128, (x, w, h) => {
+    const g = x.createRadialGradient(64, 64, 4, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,245,1)'); g.addColorStop(0.18, 'rgba(255,250,220,.95)');
+    g.addColorStop(0.35, 'rgba(255,240,190,.35)'); g.addColorStop(1, 'rgba(255,230,180,0)');
+    x.fillStyle = g; x.fillRect(0, 0, w, h);
+  });
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+/* Reflexo do céu nos karts e moedas: uma esfera com as cores do céu, transformada em mapa de ambiente. */
+function ambiente(cimo, horizonte, chao) {
+  const s = new THREE.Scene(), g = new THREE.SphereGeometry(50, 32, 16), pos = g.attributes.position;
+  const a = new THREE.Color(cimo), b = new THREE.Color(horizonte), c = new THREE.Color(chao), cor = [];
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 50, k = y > 0 ? b.clone().lerp(a, Math.pow(y, 0.6)) : b.clone().lerp(c, Math.min(1, -y * 4));
+    k.convertSRGBToLinear(); cor.push(k.r, k.g, k.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cor, 3));
+  s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const sol = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 8), new THREE.MeshBasicMaterial({ color: '#fffaf0' }));
+  sol.position.set(25, 35, 18); s.add(sol);
+  const pm = new THREE.PMREMGenerator(R), rt = pm.fromScene(s, 0.02);
+  pm.dispose(); g.dispose();
+  return rt.texture;
+}
+/* Sol que faz sombra: segue o kart do jogador para as sombras ficarem nítidas perto dele. */
+const DIR_SOL = new THREE.Vector3(60, 100, 40).normalize();
+function criaSol(cena, forca) {
+  const sol = new THREE.DirectionalLight('#fff3dc', forca);
+  sol.castShadow = true;
+  sol.shadow.mapSize.set(1024, 1024);
+  const sc = sol.shadow.camera; sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 260;
+  sol.shadow.bias = -0.0006; sol.shadow.normalBias = 0.03;
+  cena.add(sol, sol.target);
+  return sol;
+}
+function moveSol(sol, x, y, z) {
+  sol.position.set(x + DIR_SOL.x * 120, y + DIR_SOL.y * 120, z + DIR_SOL.z * 120);
+  sol.target.position.set(x, y, z);
 }
 function texZebra(ceu) {
   return texCanvas(16, 64, (x, w, h) => {
@@ -96,6 +172,7 @@ function texCeu(c1, c2) {
     x.fillStyle = g; x.fillRect(0, 0, w, h);
   });
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.encoding = THREE.sRGBEncoding;
   return t;
 }
 function texSombra() {
@@ -109,7 +186,7 @@ function texSombra() {
 }
 
 const lamb = {};
-function mL(c) { return lamb[c] || (lamb[c] = new THREE.MeshLambertMaterial({ color: c })); }
+function mL(c) { return lamb[c] || (lamb[c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, envMapIntensity: 0.3 })); }
 
 /* Amostras do traçado: posição, direção (tx,tz), lado (lx,lz: para a esquerda do piloto) e distância. */
 function amostra(def) {
@@ -148,6 +225,7 @@ function fita(P, a, b, ya, yb, material, vEsc, i0 = 0, i1 = P.N, extraY) {
   g.setIndex(idx);
   g.computeVertexNormals();
   const m = new THREE.Mesh(g, material);
+  m.receiveShadow = true;
   return m;
 }
 
@@ -160,30 +238,37 @@ function montaPista(def, cena) {
 
   cena.background = texCeu(def.ceu[0], def.ceu[1]);
   cena.fog = new THREE.Fog(def.neblina, 90, ceu ? 420 : 330);
-  cena.add(new THREE.HemisphereLight(0xffffff, ceu ? 0xb48cff : 0x7f9a5a, 0.85));
-  const sol = new THREE.DirectionalLight(0xffffff, 0.75); sol.position.set(60, 120, 40); cena.add(sol);
+  cena.add(new THREE.HemisphereLight(def.ceu[1], ceu ? '#b48cff' : def.chao, 0.45));
+  P.sol = criaSol(cena, ceu ? 1.6 : 2.0);
+  cena.environment = ambiente(def.ceu[0], def.neblina, ceu ? '#ffffff' : def.chao);
+  const brilhoSol = new THREE.Sprite(new THREE.SpriteMaterial({ map: texSol(), fog: false, depthWrite: false, transparent: true }));
+  brilhoSol.scale.setScalar(180); brilhoSol.position.copy(DIR_SOL).multiplyScalar(700).add(new THREE.Vector3(15, 0, 70));
+  cena.add(brilhoSol);
 
   const tAsf = texAsfalto(ceu);
-  const mAsf = new THREE.MeshLambertMaterial({ map: tAsf, side: THREE.DoubleSide });
-  const mZeb = new THREE.MeshLambertMaterial({ map: texZebra(ceu), side: THREE.DoubleSide });
+  tAsf.anisotropy = R.capabilities.getMaxAnisotropy();
+  const mAsf = new THREE.MeshStandardMaterial({ map: tAsf, side: THREE.DoubleSide, roughness: ceu ? 0.35 : 0.88, metalness: ceu ? 0.25 : 0, envMapIntensity: ceu ? 0.8 : 0.25 });
+  const mZeb = new THREE.MeshStandardMaterial({ map: texZebra(ceu), side: THREE.DoubleSide, roughness: 0.7, envMapIntensity: 0.3 });
   cena.add(fita(P, P.meia, -P.meia, 0.03, 0.03, mAsf, 12));
   cena.add(fita(P, P.meia + 1.3, P.meia, 0.06, 0.06, mZeb, 8));
   cena.add(fita(P, -P.meia, -P.meia - 1.3, 0.06, 0.06, mZeb, 8));
 
   if (ceu) {
     // Estrada flutuando: lateral grossa por baixo e grade de arco-íris dos dois lados.
-    const mLado = new THREE.MeshLambertMaterial({ color: '#8e7bff', side: THREE.DoubleSide });
+    const mLado = new THREE.MeshStandardMaterial({ color: '#8e7bff', side: THREE.DoubleSide });
     for (const s of [1, -1]) cena.add(fita(P, s * (P.meia + 1.3), s * (P.meia + 1.3), 0.06, -2.2, mLado, 10));
-    cena.add(fita(P, P.meia + 1.3, -P.meia - 1.3, -2.2, -2.2, new THREE.MeshLambertMaterial({ color: '#ffffff', side: THREE.DoubleSide }), 10));
+    cena.add(fita(P, P.meia + 1.3, -P.meia - 1.3, -2.2, -2.2, new THREE.MeshStandardMaterial({ color: '#ffffff', side: THREE.DoubleSide }), 10));
     const mGrade = new THREE.MeshBasicMaterial({ map: texArcoIris(), side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
     for (const s of [1, -1]) cena.add(fita(P, s * (P.meia + 1.1), s * (P.meia + 1.1), 0.06, 1.1, mGrade, 6));
   } else {
-    const chao = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), mL(def.chao));
-    chao.rotation.x = -Math.PI / 2; chao.position.y = -0.05; cena.add(chao);
-    const mFora = mL(def.fora);
+    const tipo = def.id === 'floresta' ? 'grama' : def.id === 'neve' ? 'neve' : 'areia';
+    const tChao = texChao(def.chao, tipo); tChao.repeat.set(220, 220); tChao.anisotropy = R.capabilities.getMaxAnisotropy();
+    const chao = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), new THREE.MeshStandardMaterial({ map: tChao, roughness: tipo === 'neve' ? 0.7 : 1, envMapIntensity: 0.25 }));
+    chao.rotation.x = -Math.PI / 2; chao.position.y = -0.05; chao.receiveShadow = true; cena.add(chao);
+    const mFora = new THREE.MeshStandardMaterial({ map: texChao(def.fora, tipo), roughness: 1, envMapIntensity: 0.25 });
     cena.add(fita(P, P.limite + 1, P.meia + 1.3, 0.01, 0.01, mFora, 10));
     cena.add(fita(P, -P.meia - 1.3, -P.limite - 1, 0.01, 0.01, mFora, 10));
-    const mCerca = new THREE.MeshLambertMaterial({ color: def.cerca, side: THREE.DoubleSide });
+    const mCerca = new THREE.MeshStandardMaterial({ color: def.cerca, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.3 });
     for (const s of [1, -1]) cena.add(fita(P, s * (P.limite + 0.8), s * (P.limite + 0.8), 0, 0.9, mCerca, 10));
   }
 
@@ -208,7 +293,7 @@ function montaPista(def, cena) {
     cena.add(m);
     return { i, lado };
   });
-  const mRampa = new THREE.MeshLambertMaterial({ map: texRampa(), side: THREE.DoubleSide });
+  const mRampa = new THREE.MeshStandardMaterial({ map: texRampa(), side: THREE.DoubleSide, roughness: 0.6, envMapIntensity: 0.3 });
   P.rampas = def.rampas.map(f => {
     const i = Math.floor(f * P.N);
     cena.add(fita(P, P.meia - 0.5, -P.meia + 0.5, 0.1, 0.1, mRampa, 3, i, i + 5, (k, n) => k / (n - 1) * 1.5));
@@ -229,7 +314,7 @@ function montaPista(def, cena) {
   }
   P.moedas = [];
   const geoMoeda = new THREE.CylinderGeometry(0.5, 0.5, 0.14, 18);
-  const mMoeda = new THREE.MeshToonMaterial({ color: '#ffd23a', emissive: '#6b4a00' });
+  const mMoeda = new THREE.MeshStandardMaterial({ color: '#ffc928', emissive: '#3a2600', metalness: 1, roughness: 0.22 });
   def.moedas.forEach((f, n) => {
     const i0 = Math.floor(f * P.N), l = [0.22, -0.22, 0][n % 3] * P.larg;
     for (let k = 0; k < 6; k++) {
@@ -244,16 +329,21 @@ function montaPista(def, cena) {
 
   const fixos = new THREE.Group();
   enfeites(def, P, fixos, cena);
-  cena.add(junta(fixos));
+  corReal(fixos);
+  const juntos = junta(fixos);
+  juntos.traverse(o => { o.castShadow = o.receiveShadow = true; });
+  cena.add(juntos);
+  corReal(cena);
   return P;
 }
 
 function presente() {
   const g = new THREE.Group();
-  const caixa = new THREE.Mesh(GEO.caixa, new THREE.MeshToonMaterial({ color: '#ff4d6d', emissive: '#401020' }));
+  const caixa = new THREE.Mesh(GEO.caixa, new THREE.MeshStandardMaterial({ color: '#ff4d6d', emissive: '#401020', roughness: 0.25, metalness: 0.2 }));
   caixa.scale.setScalar(1.3); g.add(caixa);
-  g.add(bloco(1.36, 1.36, 0.28, '#ffe14d', 0, 0, 0));
-  g.add(bloco(0.28, 1.36, 1.36, '#ffe14d', 0, 0, 0));
+  const laco = mat('#ffe14d', 'tinta');
+  g.add(bloco(1.36, 1.36, 0.28, laco, 0, 0, 0));
+  g.add(bloco(0.28, 1.36, 1.36, laco, 0, 0, 0));
   for (const s of [-1, 1]) { const l = bola(0.28, '#ffe14d', s * 0.22, 0.78, 0, 1, 0.6, 0.6); l.rotation.z = s * 0.5; g.add(l); }
   g.userData.caixa = caixa;
   return g;
@@ -283,17 +373,29 @@ function beira(P, n, dist, cria) {
   }
 }
 
+const FOLHAS = ['#2f6b2a', '#3a7d32', '#4b8f3a', '#356f2c', '#5a9a40'].map(c => mat(c, 'folha'));
+const CASCA = mat('#6b4a2e', 'pelo');
 function arvore(cena, x, z, esc) {
   const g = new THREE.Group();
-  g.add(malha(GEO.cil, '#8a5a2b', 0, 1.5, 0, 0.35, 3, 0.35));
-  g.add(bola(2, '#3f9e34', 0, 4.2, 0)); g.add(bola(1.5, '#57b947', 0.8, 5.2, 0.4)); g.add(bola(1.3, '#4caf50', -0.9, 4.9, -0.3));
-  g.position.set(x, 0, z); g.scale.setScalar(esc); cena.add(g);
+  g.add(malha(GEO.tronco, CASCA, 0, 1.6, 0, 0.32, 3.2, 0.32));
+  for (const [a, b] of [[0.6, 0.4], [-0.5, -0.3]]) g.add(entre([0, 2.6, 0], [a * 1.6, 3.8, b * 1.6], 0.12, CASCA));
+  for (let i = 0; i < 6; i++) {                                     // copa feita de vários tufos
+    const a = i / 6 * Math.PI * 2 + Math.random(), r = i ? 1.1 : 0;
+    const f = malha(GEO.folha, FOLHAS[Math.floor(Math.random() * FOLHAS.length)],
+      Math.cos(a) * r, 4.4 + Math.random() * 0.9 + (i ? 0 : 0.6), Math.sin(a) * r, 1.3 + Math.random() * 0.6);
+    f.rotation.set(Math.random() * 3, Math.random() * 3, 0); g.add(f);
+  }
+  g.position.set(x, 0, z); g.scale.setScalar(esc); g.rotation.y = Math.random() * 6; cena.add(g);
+}
+function pedra(cena, x, z, esc, cor = '#8d8a84') {
+  const m = malha(GEO.pedra, mat(cor, 'folha'), x, 0.2 * esc, z, esc * (0.8 + Math.random() * 0.6), esc * 0.6, esc);
+  m.rotation.set(Math.random(), Math.random() * 6, Math.random()); cena.add(m);
 }
 function pinheiro(cena, x, z, esc) {
   const g = new THREE.Group();
   g.add(malha(GEO.cil, '#7a4a24', 0, 1, 0, 0.3, 2, 0.3));
   for (let i = 0; i < 3; i++) {
-    g.add(malha(GEO.cone, '#2e7d5b', 0, 2.6 + i * 1.5, 0, 2.2 - i * 0.55, 2.4, 2.2 - i * 0.55));
+    g.add(malha(GEO.cone, mat('#24563d', 'folha'), 0, 2.6 + i * 1.5, 0, 2.2 - i * 0.55, 2.4, 2.2 - i * 0.55));
     g.add(malha(GEO.cone, '#ffffff', 0, 3.4 + i * 1.5, 0, 1.1 - i * 0.3, 0.9, 1.1 - i * 0.3));
   }
   g.position.set(x, 0, z); g.scale.setScalar(esc); cena.add(g);
@@ -351,14 +453,15 @@ function enfeites(def, P, cena, vivo) {
     dinoGigante(cena, 15, 60, 0.6, '#7fa8e6');
     dinoGigante(cena, 200, 40, 2.4, '#9b7fe6');
     for (let i = 0; i < 6; i++) {
-      const a = i / 6 * Math.PI * 2, m = malha(GEO.cone, i % 2 ? '#7a8f6a' : '#8aa070', 15 + Math.cos(a) * 330, 30, 70 + Math.sin(a) * 330, 70, 60, 70);
+      const a = i / 6 * Math.PI * 2, m = malha(GEO.cone, mat(i % 2 ? '#6f8560' : '#7f9668', 'folha'), 15 + Math.cos(a) * 330, 30, 70 + Math.sin(a) * 330, 70, 60, 70);
       cena.add(m);
     }
     const v = malha(GEO.cone, '#7a5040', -260, 40, 220, 80, 80, 80); cena.add(v);
     cena.add(bola(12, '#ff7a2f', -260, 82, 220, 1, 0.3, 1));
     beira(P, 40, 1, (x, z) => cena.add(bola(0.4, ['#ff6bd6', '#ffe14d', '#ffffff'][Math.floor(Math.random() * 3)], x, 0.3, z)));
+    beira(P, 45, 0, (x, z) => pedra(cena, x, z, 0.6 + Math.random() * 1.2));
   } else if (def.id === 'praia') {
-    const mar = new THREE.Mesh(new THREE.PlaneGeometry(1600, 900), new THREE.MeshLambertMaterial({ color: '#2aa7d8' }));
+    const mar = new THREE.Mesh(new THREE.PlaneGeometry(1600, 900), new THREE.MeshStandardMaterial({ color: '#1f8fc4', roughness: 0.08, metalness: 0.3 }));
     mar.rotation.x = -Math.PI / 2; mar.position.set(15, 0.02, 650); vivo.add(mar);
     anim.push(t => { mar.position.y = 0.02 + Math.sin(t) * 0.05; });
     beira(P, 45, 3, (x, z) => (z < 190 ? coqueiro(cena, x, z, 0.9 + Math.random() * 0.4) : null));
@@ -369,11 +472,12 @@ function enfeites(def, P, cena, vivo) {
   } else if (def.id === 'neve') {
     beira(P, 70, 3, (x, z) => pinheiro(cena, x, z, 0.8 + Math.random() * 0.6));
     beira(P, 12, 4, (x, z) => boneco(cena, x, z));
+    beira(P, 35, 0, (x, z) => pedra(cena, x, z, 0.6 + Math.random(), '#9aa4ae'));
     espalha(P, 80, 16, 260, (x, z) => pinheiro(cena, x, z, 1 + Math.random()));
     for (let i = 0; i < 7; i++) {
       const a = i / 7 * Math.PI * 2, x = 15 + Math.cos(a) * 320, z = 70 + Math.sin(a) * 320;
-      cena.add(malha(GEO.cone, '#a7bfd8', x, 45, z, 80, 90, 80));
-      cena.add(malha(GEO.cone, '#ffffff', x, 78, z, 34, 26, 34));
+      cena.add(malha(GEO.cone, mat('#8fa6bf', 'folha'), x, 45, z, 80, 90, 80));
+      cena.add(malha(GEO.cone, mat('#ffffff', 'folha'), x, 78, z, 34, 26, 34));
     }
     const neve = flocos(vivo, 900, 140, '#ffffff', 0.7);
     anim.push((t, dt, cam) => {
