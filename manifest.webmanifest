@@ -1,7 +1,7 @@
 {
   "name": "Turma Turbo",
   "short_name": "Turma Turbo",
-  "description": "Corrida de kart com Gabriel, Matheus, Davi, Sofia, Helena, Heitor, dinossauros, cachorrinho e gatinho: 20 pistas em 5 mundos. Sem anúncios, funciona sem internet. Desenvolvido por EG Gamer X.",
+  "description": "Corrida de kart com Gabriel, Matheus, Davi, Sofia, Helena, Heitor, Estela, dinossauros, cachorrinho e gatinho: 20 pistas em 5 mundos. Sem anúncios, funciona sem internet. Desenvolvido por EG Gamer X.",
   "lang": "pt-BR",
   "start_url": "./index.html",
   "scope": "./",

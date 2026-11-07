@@ -13,6 +13,8 @@ const PILOTOS = [
     pele: '#f6c9a2', cabelo: '#5a3418', camisa: '#ff7eb6', laco: '#ff2d87', penteado: 'longo' },
   { id: 'helena',   nome: 'Helena',      tipo: 'menina', cor: '#ffc928', cor2: '#ff8cc6', letra: 'H',
     pele: '#f2c096', cabelo: '#8a5a2b', camisa: '#ffd84a', laco: '#ff5fa2', penteado: 'chiquinhas' },
+  { id: 'estela',   nome: 'Estela',      tipo: 'menina', cor: '#b57bff', cor2: '#ffc2e2', letra: 'E',
+    pele: '#f4c4a0', cabelo: '#4a2c16', camisa: '#c99bff', laco: '#ff6fb5', penteado: 'tiara' },
   { id: 'heitor',   nome: 'Heitor',      tipo: 'menino', cor: '#1f4fbf', cor2: '#ffd23a', letra: 'H',
     pele: '#eab68c', cabelo: '#2d1b0e', camisa: '#1f4fbf', topete: 'espetado' },
   { id: 'rex',      nome: 'Rex',         tipo: 'rex',    cor: '#e53935', cor2: '#ffd23a', letra: 'R', pele: '#57b947' },
@@ -175,6 +177,20 @@ function menina(g, p) {
     g.add(bola(0.44, cab, 0, 1.2, -0.3, 1.05, 1.35, 0.6));          // cabelo comprido nas costas
     for (const s of [-1, 1]) g.add(bola(0.2, cab, s * 0.36, 1.2, -0.08, 0.6, 1.5, 0.8));
     laco(g, p.laco, 0.28, 1.88, -0.02, 1.3);
+  } else if (p.penteado === 'tiara') {
+    g.add(bola(0.46, cab, 0, 1.38, -0.14, 1.06, 0.95, 0.9));        // cabelo chanel, até o queixo
+    for (const s of [-1, 1]) g.add(bola(0.17, cab, s * 0.38, 1.22, 0.02, 0.7, 1.1, 0.9));
+    const ouro = mat('#ffd23a', 'metal');
+    for (let i = 0; i < 9; i++) {                                   // tiara dourada com estrelinha
+      const a = (i / 8 - 0.5) * 2.4;
+      g.add(bola(0.05, ouro, Math.sin(a) * 0.44, 1.78 + Math.cos(a) * 0.12, 0.02 + Math.cos(a) * 0.05));
+    }
+    const brilho = mat(p.laco, 'brilho');
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * Math.PI * 2;
+      g.add(chifre([0, 1.95, 0.1], [Math.sin(a) * 0.13, 1.95 + Math.cos(a) * 0.13, 0.1], 0.05, brilho));
+    }
+    g.add(bola(0.06, brilho, 0, 1.95, 0.1));
   } else {
     for (const s of [-1, 1]) {                                      // marias-chiquinhas
       g.add(bola(0.2, cab, s * 0.52, 1.42, -0.22, 0.8, 1.45, 0.8));
