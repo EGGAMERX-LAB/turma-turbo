@@ -52,9 +52,9 @@ button { font: inherit; border: 0; cursor: pointer; color: inherit; }
   border-radius: 50%; background: rgba(255,255,255,.92); font-size: min(7vh, 6vw); color: #ff7a00; box-shadow: 0 .8vh 0 rgba(0,0,0,.25); }
 #escolhe .seta:active { transform: translateY(-45%); }
 #escolhe .esq { left: 3vw; } #escolhe .dir { right: 3vw; }
-#escolhe .fotos { position: fixed; bottom: 3vh; left: 3vw; right: calc(3vw + min(19vh, 17vw)); display: flex; gap: 1.4vh;
+#escolhe .fotos { position: fixed; bottom: 3vh; left: 3vw; right: calc(3vw + min(19vh, 17vw)); display: flex; gap: 1vh;
   justify-content: center; flex-wrap: wrap; }
-#escolhe .foto { width: min(13vh, 9vw); height: min(13vh, 9vw); border-radius: 2.4vh; background: rgba(255,255,255,.7);
+#escolhe .foto { width: min(12vh, 7.4vw); height: min(12vh, 7.4vw); border-radius: 2.4vh; background: rgba(255,255,255,.7);
   border: .6vh solid transparent; box-shadow: 0 .6vh 0 rgba(0,0,0,.2); overflow: hidden; padding: 0; }
 #escolhe .foto img { width: 100%; height: 100%; display: block; }
 #escolhe .foto.on { background: #fff; border-color: var(--cor, #ff8a1f); transform: scale(1.12); }
@@ -63,7 +63,7 @@ button { font: inherit; border: 0; cursor: pointer; color: inherit; }
 /* Escolher pista */
 #pistas { background: rgba(5,15,40,.55); }
 #pistas .grade { display: flex; flex-wrap: wrap; justify-content: center; gap: 4vh; max-width: 94vw; }
-#pistas button { width: min(30vh, 20vw); height: min(34vh, 23vw); border-radius: 4vh; border: .8vh solid #fff;
+#pistas button { width: min(30vh, 17vw); height: min(34vh, 21vw); border-radius: 4vh; border: .8vh solid #fff;
   background: linear-gradient(var(--c1), var(--c2)); box-shadow: 0 1vh 0 rgba(0,0,0,.35);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1vh; color: #fff; }
 #pistas button b { font-size: min(14vh, 10vw); line-height: 1; }
@@ -125,3 +125,6 @@ button { font: inherit; border: 0; cursor: pointer; color: inherit; }
 #medalha { animation-name: popm; }
 @keyframes popm { from { transform: scale(2.5); opacity: 0; } }
 @keyframes gira { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+#pistas button.hora-noite { background: linear-gradient(#22336e, #040a24); }
+#pistas button.hora-tarde { background: linear-gradient(#ffd9a0, #ff7a3a); }
+#pistas button.hora-manha { background: linear-gradient(#ffd6e6, #7fa6e8); }

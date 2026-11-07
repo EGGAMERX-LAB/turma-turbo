@@ -9,6 +9,12 @@ const PILOTOS = [
     pele: '#f2c096', cabelo: '#3d2614', camisa: '#ff8a1f', topete: 'cachos' },
   { id: 'davi',     nome: 'Davi',        tipo: 'menino', cor: '#2fb85a', cor2: '#ffe14d', letra: 'D',
     pele: '#e9b48a', cabelo: '#24170d', camisa: '#2fb85a', topete: 'liso' },
+  { id: 'sofia',    nome: 'Sofia',       tipo: 'menina', cor: '#ff5fa2', cor2: '#ffffff', letra: 'S',
+    pele: '#f6c9a2', cabelo: '#5a3418', camisa: '#ff7eb6', laco: '#ff2d87', penteado: 'longo' },
+  { id: 'helena',   nome: 'Helena',      tipo: 'menina', cor: '#ffc928', cor2: '#ff8cc6', letra: 'H',
+    pele: '#f2c096', cabelo: '#8a5a2b', camisa: '#ffd84a', laco: '#ff5fa2', penteado: 'chiquinhas' },
+  { id: 'heitor',   nome: 'Heitor',      tipo: 'menino', cor: '#1f4fbf', cor2: '#ffd23a', letra: 'H',
+    pele: '#eab68c', cabelo: '#2d1b0e', camisa: '#1f4fbf', topete: 'espetado' },
   { id: 'rex',      nome: 'Rex',         tipo: 'rex',    cor: '#e53935', cor2: '#ffd23a', letra: 'R', pele: '#57b947' },
   { id: 'tri',      nome: 'Tri',         tipo: 'tri',    cor: '#8e44ad', cor2: '#ffffff', letra: 'T', pele: '#f0a63a' },
   { id: 'pesco',    nome: 'Pesco',       tipo: 'pesco',  cor: '#ffd23a', cor2: '#2f7de1', letra: 'P', pele: '#7fa8e6' },
@@ -106,9 +112,10 @@ function bracos(g, cor, mao, ombroY = 0.98, largura = 0.3) {
 
 function criaPiloto(p) {
   const g = new THREE.Group();
-  const corpo = p.tipo === 'menino' ? p.camisa : p.pele;
-  g.add(bola(0.34, corpo, 0, 0.86, -0.15, 1, 1.05, 0.85));
+  const crianca = p.tipo === 'menino' || p.tipo === 'menina';
+  g.add(bola(0.34, crianca ? p.camisa : p.pele, 0, 0.86, -0.15, 1, 1.05, 0.85));
   if (p.tipo === 'menino') menino(g, p);
+  else if (p.tipo === 'menina') menina(g, p);
   else if (p.tipo === 'rex') rex(g, p);
   else if (p.tipo === 'tri') tri(g, p);
   else if (p.tipo === 'pesco') pesco(g, p);
@@ -127,6 +134,11 @@ function menino(g, p) {
   if (p.topete === 'ponta') {
     g.add(chifre([0.02, 1.86, 0.05], [0.12, 2.08, 0.18], 0.12, cab));
     g.add(chifre([-0.12, 1.84, 0.08], [-0.2, 2.02, 0.24], 0.09, cab));
+  } else if (p.topete === 'espetado') {
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 6 - 0.5) * 1.6;
+      g.add(chifre([Math.sin(a) * 0.25, 1.85, -0.05 + Math.cos(a) * 0.05], [Math.sin(a) * 0.4, 2.12, -0.12], 0.08, cab));
+    }
   } else if (p.topete === 'cachos') {
     for (let i = 0; i < 9; i++) {
       const a = i / 9 * Math.PI * 2;
@@ -140,6 +152,36 @@ function menino(g, p) {
   g.add(bola(0.055, '#e09a72', 0, 1.42, 0.42));
   for (const s of [-1, 1]) g.add(bola(0.07, '#ff9d9d', s * 0.25, 1.35, 0.32, 1, 0.7, 0.5));
   boca(g, 1.31, 0.37);
+}
+
+// Lacinho de cabelo.
+function laco(g, c, x, y, z, esc = 1) {
+  const m = mat(c, 'brilho');
+  for (const s of [-1, 1]) {
+    const b = bola(0.14 * esc, m, x + s * 0.13 * esc, y, z, 1, 0.7, 0.55);
+    b.rotation.z = s * 0.45; g.add(b);
+  }
+  g.add(bola(0.065 * esc, m, x, y, z));
+}
+
+function menina(g, p) {
+  menino(g, p);                                                     // mesmo rostinho, com franja
+  const cab = mat(p.cabelo, 'pelo');
+  for (const s of [-1, 1]) g.add(bola(0.045, '#1c1c28', s * 0.2, 1.62, 0.36, 1.6, 0.5, 0.5));   // cílios
+  g.add(bola(0.1, '#ffffff', -0.12, 0.98, 0.16, 1, 0.9, 0.5));     // coraçãozinho no peito
+  g.add(bola(0.07, p.laco, -0.05, 0.93, 0.2)); g.add(bola(0.07, p.laco, 0.05, 0.93, 0.2));
+  g.add(chifre([0, 0.9, 0.2], [0, 0.8, 0.2], 0.08, p.laco));
+  if (p.penteado === 'longo') {
+    g.add(bola(0.44, cab, 0, 1.2, -0.3, 1.05, 1.35, 0.6));          // cabelo comprido nas costas
+    for (const s of [-1, 1]) g.add(bola(0.2, cab, s * 0.36, 1.2, -0.08, 0.6, 1.5, 0.8));
+    laco(g, p.laco, 0.28, 1.88, -0.02, 1.3);
+  } else {
+    for (const s of [-1, 1]) {                                      // marias-chiquinhas
+      g.add(bola(0.2, cab, s * 0.52, 1.42, -0.22, 0.8, 1.45, 0.8));
+      g.add(bola(0.12, cab, s * 0.58, 1.12, -0.24, 0.8, 1, 0.8));
+      laco(g, p.laco, s * 0.45, 1.7, -0.18, 1);
+    }
+  }
 }
 
 function dinoOlhos(g, y, z, sep) { olhos(g, y, z, sep, 0.1, 0.07); }

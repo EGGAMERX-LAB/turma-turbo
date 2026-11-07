@@ -87,23 +87,83 @@ function ligaMotor() {
 }
 function desligaMotor() { if (motor) { try { motor.o.stop(); } catch (e) {} motor = null; } }
 
-// Musiquinha da corrida (melodia original, em laço).
-const MELODIA = [0, 4, 7, 12, 11, 7, 4, 7, 9, 5, 9, 12, 11, null, 7, null, 0, 4, 7, 12, 14, 12, 11, 9, 7, 9, 11, 7, 12, null, null, null];
-const BAIXO = [0, 0, 7, 7, 5, 5, 7, 7, 0, 0, 7, 7, 5, 7, 0, 0];
+/* Música de corrida no estilo dos jogos dos anos 90: melodia, baixo pulsando e bateria.
+   Cada pista compõe a sua (melodias novas, criadas a partir do número da pista, sempre iguais para a mesma pista). */
+const ESCALAS = { maior: [0, 2, 4, 5, 7, 9, 11], menor: [0, 2, 3, 5, 7, 8, 10], dorica: [0, 2, 3, 5, 7, 9, 10], mixo: [0, 2, 4, 5, 7, 9, 10] };
+const PROGRESSOES = {                                    // graus da escala, um acorde por compasso
+  maior: [[0, 4, 5, 3], [0, 3, 4, 4], [0, 5, 3, 4], [0, 3, 0, 4], [5, 3, 0, 4]],
+  menor: [[0, 5, 6, 0], [0, 3, 6, 4], [0, 6, 5, 6], [0, 5, 3, 4], [0, 2, 6, 4]],
+  dorica: [[0, 3, 0, 3], [0, 6, 3, 4], [0, 3, 6, 0]],
+  mixo: [[0, 6, 3, 0], [0, 6, 5, 4], [0, 3, 6, 3]],
+};
+const RITMOS = ['1010110110101100', '1011001011010010', '1101101011011010', '1000101010101110',
+  '1010101011101010', '1001001010110100', '1110101010011010', '1010011010100110'];
+const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function compoe(semente) {
+  const r = sorteador(semente * 7919 + 13), esc_ = a => a[Math.floor(r() * a.length)];
+  const modo = esc_(Object.keys(ESCALAS)), escala = ESCALAS[modo];
+  const raiz = 43 + Math.floor(r() * 9), bpm = 136 + Math.floor(r() * 34);
+  const nota_ = (grau, oit) => raiz + escala[((grau % 7) + 7) % 7] + 12 * (Math.floor(grau / 7) + oit);
+  const frase = () => {                                 // um compasso de melodia, em graus a partir do acorde
+    const ritmo = esc_(RITMOS), passos = [];
+    let g = esc_([0, 2, 4, 7]);
+    for (let i = 0; i < 16; i++) {
+      if (ritmo[i] !== '1') { passos.push(null); continue; }
+      if (i % 4 === 0) g = esc_([0, 2, 4, 4, 7]); else g += esc_([-1, 1, 1, 2, -2, 0]);
+      passos.push(Math.max(-2, Math.min(9, g)));
+    }
+    return passos;
+  };
+  const fA = frase(), fA2 = frase(), fB = frase(), fB2 = frase();
+  const pA = esc_(PROGRESSOES[modo]), pB = esc_(PROGRESSOES[modo]);
+  const compassos = [];
+  const secao = (prog, f, fim) => prog.forEach((c, i) => compassos.push({ acorde: c, mel: i === 3 ? fim : f }));
+  secao(pA, fA, fA2); secao(pA, fA, fA2); secao(pB, fB, fB2); secao(pA, fA, fA2);
+  const kickExtra = esc_([[], [10], [6], [6, 14], [3, 11]]);
+  return { bpm, nota: nota_, compassos, timbre: esc_(['square', 'square', 'sawtooth']), arpejo: r() < 0.65, kickExtra };
+}
+
+function tambor(tipo, q) {
+  if (!ac || !save.som) return;
+  const t = ac.currentTime + q;
+  if (tipo === 'bumbo') {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.17);
+    return;
+  }
+  if (!bufRuido) ruido(0.001, 0.0001, 1000, 1000);       // cria o ruído
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  const caixa = tipo === 'caixa', dur = caixa ? 0.14 : 0.035;
+  s.buffer = bufRuido; f.type = 'highpass'; f.frequency.value = caixa ? 1500 : 7000;
+  g.gain.setValueAtTime(caixa ? 0.1 : 0.035, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.connect(f).connect(g).connect(ac.destination); s.start(t, Math.random() * 0.5); s.stop(t + dur);
+}
+
 let musica = null;
-function tocaMusica(tom) {
+function tocaMusica(semente) {
   paraMusica();
   if (!ac) return;
-  let passo = 0, prox = ac.currentTime + 0.1;
-  const dur = 0.16, base = 440 * Math.pow(2, (tom - 9) / 12);
+  const M = compoe(semente), dur = 60 / M.bpm / 4;
+  let passo = 0, prox = ac.currentTime + 0.15;
   musica = setInterval(() => {
-    while (prox < ac.currentTime + 0.3) {
-      const q = prox - ac.currentTime, m = MELODIA[passo % MELODIA.length];
-      if (m !== null) nota(base * Math.pow(2, m / 12), dur * 0.9, 'square', 0.025, q);
-      if (passo % 2 === 0) nota(base / 4 * Math.pow(2, BAIXO[(passo / 2) % BAIXO.length] / 12), dur * 1.8, 'triangle', 0.07, q);
+    while (prox < ac.currentTime + 0.25) {
+      const q = prox - ac.currentTime, s = passo % 16;
+      const comp = M.compassos[Math.floor(passo / 16) % M.compassos.length], m = comp.mel[s];
+      if (m !== null) {
+        let len = 1; while (s + len < 16 && comp.mel[s + len] === null && len < 4) len++;
+        nota(hz(M.nota(comp.acorde + m, 2)), dur * len * 0.92, M.timbre, M.timbre === 'sawtooth' ? 0.016 : 0.022, q);
+      }
+      if (s % 2 === 0) nota(hz(M.nota(comp.acorde, (s / 2) % 2)), dur * 1.7, 'triangle', 0.09, q);   // baixo pulando de oitava
+      if (M.arpejo) nota(hz(M.nota(comp.acorde + [0, 2, 4, 7][s % 4], 1)), dur * 0.8, 'triangle', 0.022, q);
+      if (s === 0 || s === 8 || M.kickExtra.includes(s)) tambor('bumbo', q);
+      if (s === 4 || s === 12) tambor('caixa', q);
+      if (s % 2 === 0) tambor('chimbal', q);
       passo++; prox += dur;
     }
-  }, 100);
+  }, 40);
 }
 function paraMusica() { if (musica) clearInterval(musica); musica = null; }
 document.addEventListener('visibilitychange', () => {
@@ -192,7 +252,7 @@ function telas(nome) {
 }
 function vaiTitulo() { acabaCorrida(); telas('titulo'); }
 function vaiEscolhe() { acabaCorrida(); telas('escolhe'); mostraPiloto(escolhido, false); }
-function vaiPistas() { acabaCorrida(); telas('pistas'); }
+function vaiPistas() { mundoAberto = C ? PISTAS[C.ip].mundo : -1; acabaCorrida(); telas('pistas'); montaGrade(); }
 
 /* ---------- A corrida ---------- */
 let C = null;
@@ -208,8 +268,8 @@ function iniciaCorrida(ip) {
   audio();
   const def = PISTAS[ip], cena = new THREE.Scene();
   const P = montaPista(def, cena);
-  const outros = PILOTOS.filter((p, i) => i !== escolhido);
-  const grade = [...outros.slice(0, 5), PILOTOS[escolhido], ...outros.slice(5)];   // o jogador larga em 6º
+  const outros = PILOTOS.filter((p, i) => i !== escolhido).sort(() => Math.random() - 0.5).slice(0, 7);
+  const grade = [...outros.slice(0, 5), PILOTOS[escolhido], ...outros.slice(5)];   // 8 karts; o jogador larga em 6º
   const habs = [0.95, 0.93, 0.91, 0.9, 0.88, 0.87, 0.86].sort(() => Math.random() - 0.5);
   const sombraMat = new THREE.MeshBasicMaterial({ map: texSombra(), transparent: true, depthWrite: false });
   const karts = grade.map((p, n) => {
@@ -243,7 +303,7 @@ function iniciaCorrida(ip) {
   atualizaItem();
   $('contagem').textContent = '';
   ligaMotor();
-  tocaMusica([0, 5, 2, 7][ip]);
+  tocaMusica(def.musica);
 }
 
 function acabaCorrida() {
@@ -715,7 +775,7 @@ function quadro(agora) {
       motor.o.frequency.setTargetAtTime(48 + v * 3.6, ac.currentTime, 0.05);
       motor.g.gain.setTargetAtTime(save.som && tela === 'corrida' ? 0.03 : 0, ac.currentTime, 0.1);
     }
-    moveSol(C.P.sol, C.eu.x, C.eu.y, C.eu.z);
+    moveSol(C.P.sol, C.eu.x, C.eu.y, C.eu.z, C.P.dirSol);
     R.render(C.cena, cam);
   } else {
     palco.rotation.y += dt * 0.7;
@@ -774,13 +834,26 @@ $('bDeNovo').onclick = () => iniciaCorrida(C ? C.ip : 0);
 $('bProxPista').onclick = () => iniciaCorrida(C ? (C.ip + 1) % PISTAS.length : 0);
 $('bPistas').onclick = () => vaiPistas();
 
-$('gradePistas').innerHTML = PISTAS.map((p, i) =>
-  `<button data-i="${i}" style="--c1:${p.c1};--c2:${p.c2}"><b>${p.emoji}</b><span>${p.nome}</span></button>`).join('');
-$('gradePistas').querySelectorAll('button').forEach(b => { b.onclick = () => iniciaCorrida(+b.dataset.i); });
+// Escolher pista: primeiro o mundo, depois uma das 4 pistas dele (cada uma numa hora do dia).
+let mundoAberto = -1;
+function montaGrade() {
+  const g = $('gradePistas');
+  if (mundoAberto < 0) {
+    g.innerHTML = MUNDOS.map((m, i) =>
+      `<button data-m="${i}" style="--c1:${m.c1};--c2:${m.c2}"><b>${m.emoji}</b><span>${m.nome}</span></button>`).join('');
+    g.querySelectorAll('button').forEach(b => { b.onclick = () => { audio(); SOM.item(); mundoAberto = +b.dataset.m; montaGrade(); }; });
+  } else {
+    g.innerHTML = PISTAS.map((p, i) => [p, i]).filter(([p]) => p.mundo === mundoAberto).map(([p, i]) =>
+      `<button data-i="${i}" class="hora-${p.hora}" style="--c1:${p.c1};--c2:${p.c2}"><b>${HORAS[p.hora].emoji}</b><span>${p.nome}</span></button>`).join('');
+    g.querySelectorAll('button').forEach(b => { b.onclick = () => iniciaCorrida(+b.dataset.i); });
+  }
+}
+montaGrade();
 
 window.appVoltar = () => {
   if (tela === 'titulo') return false;
   if (tela === 'corrida' || tela === 'fim') vaiPistas();
+  else if (tela === 'pistas' && mundoAberto >= 0) { mundoAberto = -1; montaGrade(); }
   else if (tela === 'pistas') vaiEscolhe();
   else vaiTitulo();
   return true;
@@ -800,7 +873,7 @@ $('bSom').textContent = save.som ? '🔊' : '🔇';
 mostraPiloto(escolhido, false);
 requestAnimationFrame(quadro);
 
-const testePista = PISTAS.findIndex(p => p.id === URLP.get('pista'));
+const testePista = PISTAS.findIndex(p => p.chave === URLP.get('pista') || p.id === URLP.get('pista'));
 const testePiloto = PILOTOS.findIndex(p => p.id === URLP.get('piloto'));
 if (testePiloto >= 0) mostraPiloto(testePiloto, false);
 setTimeout(() => {

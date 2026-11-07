@@ -1,24 +1,77 @@
 /* Turma Turbo — as pistas: traçado, asfalto, enfeites e objetos (caixas de presente, moedas, turbo, rampas). */
 'use strict';
 
-const PISTAS = [
-  { id: 'floresta', nome: 'Floresta Dino', emoji: '🌳', c1: '#9be36b', c2: '#2f7a24',
+/* 5 mundos × 4 pistas = 20 pistas. A 1ª de cada mundo tem traçado feito à mão; as outras são geradas
+   (sempre iguais) e cada uma tem uma hora do dia e uma música própria. */
+const MUNDOS = [
+  { id: 'floresta', nome: 'Floresta', emoji: '🌳', c1: '#9be36b', c2: '#2f7a24',
     ceu: ['#5fb4ff', '#d7f0ff'], neblina: '#cfeaff', chao: '#6cc04a', fora: '#58a83a', larg: 15, cerca: '#8a5a2b',
     pontos: [[0, 0], [60, -12], [112, 8], [132, 58], [104, 102], [54, 92], [22, 132], [-40, 142], [-92, 112], [-104, 52], [-62, 18]],
-    caixas: [0.16, 0.48, 0.76], turbos: [0.3, 0.62, 0.9], rampas: [0.4], moedas: [0.08, 0.24, 0.55, 0.7, 0.85] },
-  { id: 'praia', nome: 'Praia do Sol', emoji: '🏖️', c1: '#ffe9a8', c2: '#2aa7d8',
+    rampas: [0.4] },
+  { id: 'praia', nome: 'Praia', emoji: '🏖️', c1: '#ffe9a8', c2: '#2aa7d8',
     ceu: ['#3aa0ff', '#fff0c8'], neblina: '#e8f6ff', chao: '#f2d48a', fora: '#e8c477', larg: 15, cerca: '#ffffff',
     pontos: [[0, 0], [80, 0], [140, 30], [152, 90], [112, 122], [72, 92], [30, 112], [-20, 152], [-82, 132], [-112, 72], [-82, 20]],
-    caixas: [0.14, 0.45, 0.74], turbos: [0.06, 0.36, 0.66], rampas: [0.56, 0.92], moedas: [0.1, 0.28, 0.5, 0.62, 0.84] },
-  { id: 'neve', nome: 'Montanha de Neve', emoji: '⛄', c1: '#ffffff', c2: '#7fb6dc',
+    rampas: [0.56, 0.92] },
+  { id: 'neve', nome: 'Neve', emoji: '⛄', c1: '#ffffff', c2: '#7fb6dc',
     ceu: ['#7fb2e6', '#f0f7ff'], neblina: '#eef5ff', chao: '#f4f9ff', fora: '#dde9f6', larg: 15, cerca: '#d84a4a',
     pontos: [[0, 0], [70, -20], [122, 20], [102, 70], [142, 110], [102, 162], [30, 152], [2, 102], [-50, 132], [-112, 102], [-102, 30], [-52, -10]],
-    caixas: [0.12, 0.42, 0.72], turbos: [0.25, 0.55, 0.85], rampas: [0.34, 0.65], moedas: [0.06, 0.2, 0.48, 0.6, 0.8, 0.94] },
-  { id: 'ceu', nome: 'Estrada do Céu', emoji: '☁️', c1: '#ffc8f0', c2: '#6b5bff', ceuPista: true,
+    rampas: [0.34, 0.65] },
+  { id: 'vulcao', nome: 'Vulcão', emoji: '🌋', c1: '#ffb04a', c2: '#6a1a0e',
+    ceu: ['#6a2418', '#ffa66a'], neblina: '#c9805a', chao: '#5a4640', fora: '#3e302b', larg: 15, cerca: '#2b2220',
+    pontos: [[0, 0], [72, -12], [124, 28], [114, 82], [62, 72], [34, 124], [-28, 134], [-82, 102], [-112, 42], [-62, 8]],
+    rampas: [0.3, 0.7] },
+  { id: 'ceu', nome: 'Céu', emoji: '☁️', c1: '#ffc8f0', c2: '#6b5bff', ceuPista: true,
     ceu: ['#4b3bd6', '#ffb8e8'], neblina: '#e8c8ff', larg: 14,
     pontos: [[0, 0, 0], [70, 0, 6], [132, 40, 14], [132, 112, 24], [72, 152, 30], [2, 132, 24], [-30, 82, 14], [-92, 92, 20], [-132, 42, 12], [-82, -10, 3]],
-    caixas: [0.14, 0.44, 0.74], turbos: [0.05, 0.22, 0.52, 0.82], rampas: [0.32, 0.62, 0.9], moedas: [0.1, 0.27, 0.4, 0.58, 0.7, 0.86] },
+    rampas: [0.32, 0.62, 0.9] },
 ];
+// Hora do dia de cada pista do mundo: muda o céu, a neblina e o sol.
+const HORAS = {
+  dia:   { emoji: '☀️' },
+  tarde: { emoji: '🌇', ceu: ['#ff7a3a', '#ffd9a0'], neblina: '#ffcf9e', sol: '#ffbf7a', forca: 0.85, dirSol: [90, 40, 10] },
+  manha: { emoji: '🌅', ceu: ['#7fa6e8', '#ffd6e6'], neblina: '#f3dbe6', sol: '#ffe2cc', forca: 0.9, dirSol: [-70, 55, 40] },
+  noite: { emoji: '🌙', ceu: ['#040a24', '#22336e'], neblina: '#17234c', sol: '#a9bcff', forca: 0.5, hemi: 0.3, dirSol: [-40, 90, -50], noite: true },
+};
+const ORDEM_HORAS = ['dia', 'tarde', 'manha', 'noite'];
+
+// Gerador de números "sorteados" que dá sempre a mesma sequência para a mesma semente.
+function sorteador(semente) {
+  let a = (semente * 2654435761) >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Traçado em volta de um centro com o raio ondulando: nunca cruza com ele mesmo.
+function tracado(semente, ceu) {
+  const r = sorteador(semente), n = 14;
+  const k1 = 2 + Math.floor(r() * 3), k2 = k1 + 1 + Math.floor(r() * 2);
+  const a1 = 0.16 + r() * 0.12, a2 = 0.06 + r() * 0.08, f1 = r() * 6, f2 = r() * 6;
+  const R0 = 88 + r() * 28, ex = 0.8 + r() * 0.4, sentido = r() < 0.5 ? 1 : -1;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const t = sentido * i / n * Math.PI * 2 - Math.PI / 2, rad = R0 * (1 + a1 * Math.sin(k1 * t + f1) + a2 * Math.sin(k2 * t + f2));
+    pts.push([15 + Math.cos(t) * rad * ex, 70 + Math.sin(t) * rad / ex, ceu ? 14 + 10 * Math.sin(2 * t + f1) + 5 * Math.sin(3 * t + f2) : 0]);
+  }
+  return pts;
+}
+
+const PISTAS = [];
+MUNDOS.forEach((m, im) => ORDEM_HORAS.forEach((h, n) => {
+  const hr = HORAS[h];
+  PISTAS.push({
+    ...m, mundo: im, num: n + 1, chave: m.id + (n + 1), hora: h, nome: m.nome + ' ' + (n + 1),
+    ceu: hr.ceu || m.ceu, neblina: hr.neblina || m.neblina,
+    sol: hr.sol || '#fff3dc', forca: hr.forca || 1, hemi: hr.hemi || 0.45, dirSol: hr.dirSol || [60, 100, 40], noite: !!hr.noite,
+    pontos: n === 0 ? m.pontos : tracado(im * 10 + n, m.ceuPista),
+    rampas: n === 0 ? m.rampas : (n % 2 ? [0.38, 0.72] : [0.46]),
+    caixas: [0.15, 0.47, 0.77], turbos: m.ceuPista ? [0.05, 0.22, 0.52, 0.82] : [0.3, 0.6, 0.88],
+    moedas: [0.08, 0.25, 0.55, 0.68, 0.85],
+    musica: im * 4 + n + 1,
+  });
+}));
 
 const ESPACO = 1.5;   // distância entre as amostras do traçado
 
@@ -107,8 +160,8 @@ function ambiente(cimo, horizonte, chao) {
 }
 /* Sol que faz sombra: segue o kart do jogador para as sombras ficarem nítidas perto dele. */
 const DIR_SOL = new THREE.Vector3(60, 100, 40).normalize();
-function criaSol(cena, forca) {
-  const sol = new THREE.DirectionalLight('#fff3dc', forca);
+function criaSol(cena, forca, cor = '#fff3dc') {
+  const sol = new THREE.DirectionalLight(cor, forca);
   sol.castShadow = true;
   sol.shadow.mapSize.set(1024, 1024);
   const sc = sol.shadow.camera; sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 260;
@@ -116,8 +169,8 @@ function criaSol(cena, forca) {
   cena.add(sol, sol.target);
   return sol;
 }
-function moveSol(sol, x, y, z) {
-  sol.position.set(x + DIR_SOL.x * 120, y + DIR_SOL.y * 120, z + DIR_SOL.z * 120);
+function moveSol(sol, x, y, z, dir = DIR_SOL) {
+  sol.position.set(x + dir.x * 120, y + dir.y * 120, z + dir.z * 120);
   sol.target.position.set(x, y, z);
 }
 function texZebra(ceu) {
@@ -238,11 +291,14 @@ function montaPista(def, cena) {
 
   cena.background = texCeu(def.ceu[0], def.ceu[1]);
   cena.fog = new THREE.Fog(def.neblina, 90, ceu ? 420 : 330);
-  cena.add(new THREE.HemisphereLight(def.ceu[1], ceu ? '#b48cff' : def.chao, 0.45));
-  P.sol = criaSol(cena, ceu ? 1.6 : 2.0);
-  cena.environment = ambiente(def.ceu[0], def.neblina, ceu ? '#ffffff' : def.chao);
-  const brilhoSol = new THREE.Sprite(new THREE.SpriteMaterial({ map: texSol(), fog: false, depthWrite: false, transparent: true }));
-  brilhoSol.scale.setScalar(180); brilhoSol.position.copy(DIR_SOL).multiplyScalar(700).add(new THREE.Vector3(15, 0, 70));
+  cena.add(new THREE.HemisphereLight(def.ceu[1], ceu ? '#b48cff' : def.chao, def.hemi));
+  P.sol = criaSol(cena, (ceu ? 1.6 : 2.0) * def.forca, def.sol);
+  P.dirSol = new THREE.Vector3(...def.dirSol).normalize();
+  cena.environment = ambiente(def.ceu[0], def.neblina, ceu ? (def.noite ? '#2a2f6a' : '#ffffff') : def.chao);
+  const brilhoSol = new THREE.Sprite(new THREE.SpriteMaterial({ map: texSol(), fog: false, depthWrite: false, transparent: true,
+    color: def.noite ? '#dfe6ff' : '#ffffff' }));
+  brilhoSol.scale.setScalar(def.noite ? 70 : 180);
+  brilhoSol.position.copy(P.dirSol).multiplyScalar(700).add(new THREE.Vector3(15, 0, 70));
   cena.add(brilhoSol);
 
   const tAsf = texAsfalto(ceu);
@@ -261,7 +317,7 @@ function montaPista(def, cena) {
     const mGrade = new THREE.MeshBasicMaterial({ map: texArcoIris(), side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
     for (const s of [1, -1]) cena.add(fita(P, s * (P.meia + 1.1), s * (P.meia + 1.1), 0.06, 1.1, mGrade, 6));
   } else {
-    const tipo = def.id === 'floresta' ? 'grama' : def.id === 'neve' ? 'neve' : 'areia';
+    const tipo = def.id === 'floresta' ? 'grama' : def.id === 'neve' ? 'neve' : 'areia';   // vulcão usa o "areia" escuro
     const tChao = texChao(def.chao, tipo); tChao.repeat.set(220, 220); tChao.anisotropy = R.capabilities.getMaxAnisotropy();
     const chao = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), new THREE.MeshStandardMaterial({ map: tChao, roughness: tipo === 'neve' ? 0.7 : 1, envMapIntensity: 0.25 }));
     chao.rotation.x = -Math.PI / 2; chao.position.y = -0.05; chao.receiveShadow = true; cena.add(chao);
@@ -329,6 +385,7 @@ function montaPista(def, cena) {
 
   const fixos = new THREE.Group();
   enfeites(def, P, fixos, cena);
+  enfeitesNoite(def, P, fixos, cena);
   corReal(fixos);
   const juntos = junta(fixos);
   juntos.traverse(o => { o.castShadow = o.receiveShadow = true; });
@@ -461,14 +518,15 @@ function enfeites(def, P, cena, vivo) {
     beira(P, 40, 1, (x, z) => cena.add(bola(0.4, ['#ff6bd6', '#ffe14d', '#ffffff'][Math.floor(Math.random() * 3)], x, 0.3, z)));
     beira(P, 45, 0, (x, z) => pedra(cena, x, z, 0.6 + Math.random() * 1.2));
   } else if (def.id === 'praia') {
+    const praia = Math.max(...P.pts.map(p => p.z)) + 30;
     const mar = new THREE.Mesh(new THREE.PlaneGeometry(1600, 900), new THREE.MeshStandardMaterial({ color: '#1f8fc4', roughness: 0.08, metalness: 0.3 }));
-    mar.rotation.x = -Math.PI / 2; mar.position.set(15, 0.02, 650); vivo.add(mar);
+    mar.rotation.x = -Math.PI / 2; mar.position.set(15, 0.02, praia + 450); vivo.add(mar);
     anim.push(t => { mar.position.y = 0.02 + Math.sin(t) * 0.05; });
-    beira(P, 45, 3, (x, z) => (z < 190 ? coqueiro(cena, x, z, 0.9 + Math.random() * 0.4) : null));
-    beira(P, 20, 4, (x, z) => (z < 190 ? guardaSol(cena, x, z) : null));
-    espalha(P, 40, 16, 240, (x, z) => (z < 190 ? coqueiro(cena, x, z, 1.1) : null));
-    for (let i = 0; i < 6; i++) nuvem(cena, -200 + i * 80, 60 + Math.random() * 20, 260, 2);
-    const ilha = bola(30, '#3fae49', 120, -8, 330, 1, 0.5, 1); cena.add(ilha);
+    beira(P, 45, 3, (x, z) => (z < praia ? coqueiro(cena, x, z, 0.9 + Math.random() * 0.4) : null));
+    beira(P, 20, 4, (x, z) => (z < praia ? guardaSol(cena, x, z) : null));
+    espalha(P, 40, 16, 240, (x, z) => (z < praia ? coqueiro(cena, x, z, 1.1) : null));
+    for (let i = 0; i < 6; i++) nuvem(cena, -200 + i * 80, 60 + Math.random() * 20, praia + 70, 2);
+    const ilha = bola(30, '#3fae49', 120, -8, praia + 140, 1, 0.5, 1); cena.add(ilha);
   } else if (def.id === 'neve') {
     beira(P, 70, 3, (x, z) => pinheiro(cena, x, z, 0.8 + Math.random() * 0.6));
     beira(P, 12, 4, (x, z) => boneco(cena, x, z));
@@ -488,6 +546,43 @@ function enfeites(def, P, cena, vivo) {
       }
       a.needsUpdate = true;
       neve.position.set(cam.position.x, 0, cam.position.z);
+    });
+  } else if (def.id === 'vulcao') {
+    // Vulcões soltando fumaça, lagos de lava brilhando, pedras escuras e árvores secas.
+    const lava = new THREE.MeshBasicMaterial({ color: '#ff5a14' });
+    for (const [x, z, e] of [[-230, 250, 1.2], [260, -60, 0.9], [-40, -230, 0.7]]) {
+      cena.add(malha(GEO.cone, mat('#3b2a26', 'folha'), x, 50 * e, z, 95 * e, 100 * e, 95 * e));
+      const topo = new THREE.Mesh(GEO.bolinha, lava); topo.position.set(x, 98 * e, z); topo.scale.set(14 * e, 4 * e, 14 * e); vivo.add(topo);
+      for (let i = 0; i < 8; i++) {                                 // fumaça subindo
+        const f = new THREE.Mesh(GEO.bolinha, new THREE.MeshStandardMaterial({ color: '#55504c', transparent: true, opacity: 0.55, roughness: 1 }));
+        vivo.add(f);
+        anim.push((t, dt) => {
+          const k = ((t * 0.12 + i / 8) % 1);
+          f.position.set(x + Math.sin(i * 2 + t * 0.3) * 6 * k * e, 100 * e + k * 70 * e, z + k * 20 * e);
+          f.scale.setScalar((6 + k * 18) * e); f.material.opacity = 0.55 * (1 - k);
+        });
+      }
+    }
+    espalha(P, 16, 22, 230, (x, z) => {                             // lagos de lava
+      const m = new THREE.Mesh(new THREE.CircleGeometry(5 + Math.random() * 8, 18), lava);
+      m.rotation.x = -Math.PI / 2; m.position.set(x, 0.04, z); vivo.add(m);
+      cena.add(malha(GEO.pedra, mat('#2a201d', 'folha'), x, 0, z, 6 + Math.random() * 3, 0.8, 6 + Math.random() * 3));
+    });
+    anim.push(t => { lava.color.setHSL(0.04 + Math.sin(t * 2) * 0.015, 1, 0.5 + Math.sin(t * 3) * 0.06).convertSRGBToLinear(); });
+    beira(P, 70, 0, (x, z) => pedra(cena, x, z, 0.6 + Math.random() * 1.6, '#4a3c37'));
+    espalha(P, 60, 14, 260, (x, z) => pedra(cena, x, z, 2 + Math.random() * 4, '#3e322e'));
+    beira(P, 30, 3, (x, z) => {                                     // árvores secas
+      const g = new THREE.Group(), c = mat('#2a1e1a', 'pelo');
+      g.add(malha(GEO.tronco, c, 0, 2, 0, 0.3, 4, 0.3));
+      for (const [a, b, h] of [[1.2, 0.3, 3.4], [-1, -0.4, 3.0], [0.3, 1, 4.2]]) g.add(entre([0, h - 1.2, 0], [a, h + 0.8, b], 0.1, c));
+      g.position.set(x, 0, z); g.rotation.y = Math.random() * 6; cena.add(g);
+    });
+    const brasas = flocos(vivo, 400, 120, '#ffaa44', 0.6);
+    anim.push((t, dt, cam) => {
+      const a = brasas.geometry.attributes.position;
+      for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * 3; if (y > 40) y -= 40; a.setY(i, y); }
+      a.needsUpdate = true;
+      brasas.position.set(cam.position.x, 0, cam.position.z);
     });
   } else {
     // Céu: nuvens embaixo e em volta, estrelas, arco-íris, balões e ilhas flutuando.
@@ -523,6 +618,23 @@ function enfeites(def, P, cena, vivo) {
       arvore(ilha, 3, 2, 1.2); arvore(ilha, -4, -3, 1);
       ilha.position.set(x, 5 + i * 6, z); cena.add(ilha);
     }
+  }
+}
+
+function enfeitesNoite(def, P, cena, vivo) {
+  if (!def.noite) return;
+  const est = flocos(vivo, 700, 600, '#ffffff', 1.5);
+  est.position.set(15, 140, 70);
+  if (def.ceuPista) return;
+  const luz = new THREE.MeshBasicMaterial({ color: '#fff1b8' });
+  const brilho = new THREE.SpriteMaterial({ map: texSol(), color: '#ffd98a', depthWrite: false, transparent: true });
+  for (let i = 0; i < P.N; i += 22) for (const s of [1, -1]) {
+    const p = P.pts[i], l = s * (P.limite + 1.6), x = p.x + p.lx * l, z = p.z + p.lz * l;
+    cena.add(malha(GEO.cil, mat('#3a3d44', 'metal'), x, 3, z, 0.12, 6, 0.12));
+    cena.add(entre([x, 5.9, z], [x - p.lx * s * 1.4, 6.1, z - p.lz * s * 1.4], 0.08, mat('#3a3d44', 'metal')));
+    const lamp = new THREE.Mesh(GEO.bolinha, luz); lamp.scale.setScalar(0.3);
+    lamp.position.set(x - p.lx * s * 1.4, 5.9, z - p.lz * s * 1.4); vivo.add(lamp);
+    const b = new THREE.Sprite(brilho); b.scale.setScalar(5); b.position.copy(lamp.position); vivo.add(b);
   }
 }
 

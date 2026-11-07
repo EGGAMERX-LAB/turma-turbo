@@ -1,6 +1,6 @@
 /* Turma Turbo — guarda o jogo no aparelho para funcionar sem internet.
    Mude o nome do cache a cada versão para os aparelhos baixarem os arquivos novos. */
-const CACHE = 'turma-turbo-v0.2.0';
+const CACHE = 'turma-turbo-v0.3.0';
 const ARQUIVOS = ['./', 'index.html', 'style.css', 'lib/three.min.js', 'personagens.js', 'pistas.js', 'jogo.js',
   'logo.webp', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
